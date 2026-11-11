@@ -1,0 +1,24 @@
+{
+  "name": "ct-visu",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "3D-Visualisierung eines KM-CT-Untersuchungsflusses (4-Phasen-HCC) mit Dosisverteilung im Patienten",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:single": "vite build && node scripts/inline.mjs",
+    "preview": "vite preview",
+    "smoke": "node scripts/smoke.mjs",
+    "test:src": "node scripts/check-src.mjs",
+    "test:flow": "node scripts/test-flow.mjs",
+    "test:bundle": "node scripts/check-singlefile.mjs"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0",
+    "vite": "^6.0.0"
+  }
+}

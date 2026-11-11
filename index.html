@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ct-visu — KM-CT 4-Phasen-HCC mit Dosisverteilung</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(15, 23, 42, 0.88);
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --warn: #facc15;
+      --danger: #ef4444;
+      --ok: #34d399;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+    #scene { position: fixed; inset: 0; }
+    .panel { position: fixed; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; backdrop-filter: blur(6px); padding: 12px 14px; z-index: 5; }
+    #controls { left: 12px; top: 12px; width: 280px; max-height: calc(100% - 24px);
+      overflow-y: auto; font-size: 13px; }
+    #controls h1 { font-size: 16px; margin: 0 0 2px; color: var(--accent); }
+    #controls .sub { color: var(--muted); font-size: 11px; margin-bottom: 10px; }
+    #controls h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); margin: 14px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+    .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .row label { flex: 0 0 96px; color: var(--muted); }
+    .row input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .row input[type="range"]:disabled { accent-color: #475569; opacity: .55; }
+    .row .val { flex: 0 0 62px; text-align: right; font-variant-numeric: tabular-nums; }
+    .row select { flex: 1; background: #0f172a; color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 6px; }
+    button { background: #164e63; color: #e0f2fe; border: 1px solid #0e7490; border-radius: 6px;
+      padding: 6px 10px; cursor: pointer; font-size: 13px; }
+    button:hover { background: #155e75; }
+    button.active { background: #b45309; border-color: #f59e0b; color: #fff7ed; }
+    button.danger { background: #7f1d1d; border-color: #b91c1c; }
+    button:disabled { opacity: .5; cursor: default; }
+    .btnrow { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+    #stepLabel { font-size: 12px; color: var(--text); background: #0f172a; border: 1px solid var(--border);
+      border-radius: 6px; padding: 7px 9px; margin: 8px 0 2px; min-height: 34px; line-height: 1.35; }
+    #phaseBadge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+      background: #052e2b; color: var(--ok); border: 1px solid #065f46; border-radius: 6px;
+      padding: 2px 8px; margin-left: 6px; }
+    #tblHint { font-size: 11px; color: var(--warn); margin-top: 4px; min-height: 14px; }
+    .proto { font-size: 11px; color: var(--muted); line-height: 1.6; }
+    .proto b { color: var(--text); font-weight: 600; }
+    #monpanel { right: 12px; top: 12px; width: 492px; padding: 10px 12px; }
+    #monpanel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); margin: 0 0 6px; }
+    #monitor { width: 100%; height: auto; display: block; background: #020617;
+      border-radius: 6px; border: 1px solid #1e293b; }
+    #monlegend { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+    #dosepanel { left: 12px; bottom: 12px; width: 280px; padding: 10px 12px; font-size: 13px; }
+    #dosepanel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); margin: 0 0 8px; }
+    #dosepanel .kv { display: flex; justify-content: space-between; margin: 4px 0; }
+    #dosepanel .kv .k { color: var(--muted); }
+    #dosepanel .kv .v { font-variant-numeric: tabular-nums; font-weight: 600; }
+    #doseslice { width: 100%; height: 150px; display: block; background: #020617;
+      border-radius: 6px; margin-top: 6px; }
+    #colorbar { width: 100%; height: 10px; border-radius: 4px; margin-top: 6px;
+      background: linear-gradient(to right, #1e3a8a, #06b6d4, #22c55e, #eab308, #f97316, #ef4444); }
+    .legend { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
+    #hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; color: var(--muted);
+      font-size: 11px; z-index: 4; background: rgba(15,23,42,.7); padding: 4px 10px; border-radius: 6px; }
+    #errbox { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      z-index: 20; max-width: 560px; background: #450a0a; color: #fecaca; border: 1px solid #b91c1c;
+      border-radius: 10px; padding: 16px 20px; font-size: 14px; white-space: pre-wrap; }
+    @media (max-width: 1250px) { #monpanel { width: 400px; } }
+  </style>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="errbox"></div>
+
+  <div class="panel" id="controls">
+    <h1>ct-visu</h1>
+    <div class="sub">KM-CT Abdomen · Protokoll „4-Phasen HCC“ · Dosis-Simulation (educational, nicht klinisch)</div>
+
+    <h2>Untersuchungsfluss</h2>
+    <div class="btnrow">
+      <button id="btnPlay">▶ Abspielen</button>
+      <button id="btnReset" class="danger">Zurücksetzen</button>
+      <select id="speed" title="Geschwindigkeit">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="4">4×</option>
+      </select>
+    </div>
+    <div id="stepLabel">Bereit — „Abspielen“ startet den kompletten Untersuchungsfluss.</div>
+    <div><span id="phaseBadge" style="display:none">—</span></div>
+
+    <h2>Tisch (manuell)</h2>
+    <div class="row">
+      <label for="tblPos">Tischposition</label>
+      <input id="tblPos" type="range" min="-1.6" max="1.7" step="0.01" value="1.7" />
+      <span class="val" id="tblPosVal">+1,70 m</span>
+    </div>
+    <div class="row">
+      <label for="tblHeight">Tischhöhe</label>
+      <input id="tblHeight" type="range" min="0.55" max="1.15" step="0.01" value="0.55" />
+      <span class="val" id="tblHeightVal">0,55 m</span>
+    </div>
+    <div id="tblHint"></div>
+
+    <h2>Protokoll „4-Phasen HCC“</h2>
+    <div class="proto">
+      <b>1.</b> Abdomen nativ<br />
+      <b>2.</b> Bolus-Tracking (ROI Aortenbogen, Schwelle 150 HU)<br />
+      <b>3.</b> Arterielle Phase (nach Trigger + Delay)<br />
+      <b>4.</b> Portal-venöse Phase (~60 s später)<br />
+      <b>5.</b> Spätvenöse Phase (später nochmals)
+    </div>
+  </div>
+
+  <div class="panel" id="monpanel">
+    <h2>Kontrollbildschirm</h2>
+    <canvas id="monitor" width="464" height="600"></canvas>
+    <div id="monlegend"><span>AP = anterior-posterior · LAT = lateral</span><span id="monMode">—</span></div>
+  </div>
+
+  <div class="panel" id="dosepanel">
+    <h2>Dosis-Monitor (CT)</h2>
+    <div class="kv"><span class="k">Phase</span><span class="v" id="rPhase">—</span></div>
+    <div class="kv"><span class="k">CTDIvol (Phase)</span><span class="v" id="rCtdi">0 mGy</span></div>
+    <div class="kv"><span class="k">DLP (Phase)</span><span class="v" id="rDlpPhase">0 mGy·cm</span></div>
+    <div class="kv"><span class="k">DLP gesamt</span><span class="v" id="rDlpTotal">0 mGy·cm</span></div>
+    <div class="kv"><span class="k">Untersuchungszeit</span><span class="v" id="rTime">0 s</span></div>
+    <canvas id="doseslice" width="252" height="150"></canvas>
+    <div id="colorbar"></div>
+    <div class="legend"><span>axiale Dosisverteilung (Isozentrum)</span><span>0 → hoch</span></div>
+  </div>
+
+  <div id="hint">Linke Maustaste: drehen · Rechtsklick: verschieben · Mausrad: zoom · Slider während „Abspielen“ pausieren den Fluss</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
